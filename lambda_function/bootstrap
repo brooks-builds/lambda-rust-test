@@ -1,0 +1,8 @@
+#!/bin/sh
+
+cd $LAMBDA_TASK_ROOT
+
+echo "hello from bootstrap"
+./lambda_rust
+
+# I found a better explanation of the bootstrap file at https://medium.com/@avijitsarkar123/aws-lambda-custom-runtime-really-works-how-i-developed-a-lambda-in-perl-9a481a7ab465
