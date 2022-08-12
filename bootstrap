@@ -1,5 +1,37 @@
 #!/bin/sh
 
+# Exit out immediately in the case that there is a failure in any of the commands
+set -euo pipefail 
+
+# $LAMBDA_TASK_ROOT gives us the full path to the directory that the file we are going to run is.
+# In this case we will cd into a directory called /var/task and it is read only for us.
 cd $LAMBDA_TASK_ROOT
 
-echo "hello from bootstrap"
+
+# Process the ...
+
+while true
+do
+    # Create a tmp directory in /tmp. For example /var/folders/yz/1m72wh9s1454b72tm1p76psm0000gn/T/tmp.XHtGM1lc
+    HEADERS="$(mktemp)"
+    # Get the next invocation event for the function.
+    # Save the headers into the $HEADERS location which we will use later to tell Lambda that we are
+    # finished with the lambda function
+    curl -D "$HEADERS" "http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/next"
+
+    # handler defined in lambda function
+    # By default this is filename.function_name. However it's possible to set the handler to be
+    # a single value like lambda_rust
+    echo "Handler: $_HANDLER"
+    ls -l
+    RESULT="$(./$_HANDLER)"
+    echo "result of running handler: $RESULT"
+
+    # The HEADERS file has a request id in it that we need to send the response api call
+    REQUEST_ID=$(grep "Lambda-Runtime-Aws-Request-Id" "$HEADERS" | cut -d: -f2 | tr -d '[:space:]')
+    
+    echo "response uri: "
+    echo "http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/$REQUEST_ID/response"
+    curl -X POST  "http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/$REQUEST_ID/response"  -d "$RESULT"
+
+done
